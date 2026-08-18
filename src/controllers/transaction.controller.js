@@ -236,7 +236,69 @@ async function createInitialFundsTransaction(req, res) {
 
 }
 
+/**
+ * - Get paginated transaction history for the logged-in user
+ * - Returns transactions where any of the user's accounts is the sender or receiver
+ */
+async function getTransactionHistory(req, res) {
+    try {
+        const page = Math.max(1, parseInt(req.query.page, 10) || 1)
+        const limit = Math.min(100, Math.max(1, parseInt(req.query.limit, 10) || 10))
+        const skip = (page - 1) * limit
+
+        const userAccounts = await accountModel
+            .find({ user: req.user._id })
+            .select("_id")
+
+        const accountIds = userAccounts.map((account) => account._id)
+
+        if (accountIds.length === 0) {
+            return res.status(200).json({
+                message: "Transaction history fetched successfully",
+                data: [],
+                totalRecords: 0,
+                totalPages: 0,
+                currentPage: page,
+                limit
+            })
+        }
+
+        const filter = {
+            $or: [
+                { fromAccount: { $in: accountIds } },
+                { toAccount: { $in: accountIds } }
+            ]
+        }
+
+        const [ totalRecords, transactions ] = await Promise.all([
+            transactionModel.countDocuments(filter),
+            transactionModel
+                .find(filter)
+                .sort({ createdAt: -1 })
+                .skip(skip)
+                .limit(limit)
+                .populate("fromAccount toAccount")
+        ])
+
+        const totalPages = Math.ceil(totalRecords / limit)
+
+        return res.status(200).json({
+            message: "Transaction history fetched successfully",
+            data: transactions,
+            totalRecords,
+            totalPages,
+            currentPage: page,
+            limit
+        })
+    } catch (error) {
+        return res.status(500).json({
+            message: "Failed to fetch transaction history"
+        })
+    }
+}
+
 module.exports = {
     createTransaction,
-    createInitialFundsTransaction
+    createInitialFundsTransaction,
+    getTransactionHistory
 }
