@@ -1,112 +1,116 @@
-const userModel = require("../models/user.model");
-const jwt = require("jsonwebtoken");
+const userModel = require("../models/user.model")
+const jwt = require("jsonwebtoken")
+const emailService = require("../services/email.service")
+const tokenBlackListModel = require("../models/blackList.model")
 
-async function registerUser(req, res) {
-    try {
-        const { username, email, password } = req.body;
+/**
+* - user register controller
+* - POST /api/auth/register
+*/
+async function userRegisterController(req, res) {
+    const { email, password, name } = req.body
 
-        if (!username || !email || !password) {
-            return res.status(400).json({ message: "All fields are required" });
-        }
+    const isExists = await userModel.findOne({
+        email: email
+    })
 
-        const existingUser = await userModel.findOne({ email });
-        if (existingUser) {
-            return res.status(400).json({ message: "User already exists" });
-        }
-
-        // We just pass the plain password now, because your user.model.js 
-        // will automatically hash it before saving it to the database!
-        const newUser = await userModel.create({ 
-            username, 
-            email, 
-            password 
-        });
-        
-        const token = jwt.sign(
-            { id: newUser._id }, 
-            process.env.JWT_SECRET, 
-            { expiresIn: '3d' }
-        );
-        
-        res.cookie('token', token, {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'strict', 
-            maxAge: 3 * 24 * 60 * 60 * 1000, 
-        });
-
-        return res.status(201).json({ 
-            message: "User registered successfully", 
-            user: {
-                _id: newUser._id,
-                username: newUser.username,
-                email: newUser.email
-            }, 
-            token 
-        });
-
-    } catch (error) {
-        console.error("Registration Error:", error);
-        return res.status(500).json({ message: "Internal server error" });
+    if (isExists) {
+        return res.status(422).json({
+            message: "User already exists with email.",
+            status: "failed"
+        })
     }
+
+    const user = await userModel.create({
+        email, password, name
+    })
+
+    const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: "3d" })
+
+    res.cookie("token", token)
+
+    res.status(201).json({
+        user: {
+            _id: user._id,
+            email: user.email,
+            name: user.name
+        },
+        token
+    })
+
+    await emailService.sendRegistrationEmail(user.email, user.name)
+}
+
+/**
+ * - User Login Controller
+ * - POST /api/auth/login
+  */
+
+async function userLoginController(req, res) {
+    const { email, password } = req.body
+
+    const user = await userModel.findOne({ email }).select("+password")
+
+    if (!user) {
+        return res.status(401).json({
+            message: "Email or password is INVALID"
+        })
+    }
+
+    const isValidPassword = await user.comparePassword(password)
+
+    if (!isValidPassword) {
+        return res.status(401).json({
+            message: "Email or password is INVALID"
+        })
+    }
+
+    const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: "3d" })
+
+    res.cookie("token", token)
+
+    res.status(200).json({
+        user: {
+            _id: user._id,
+            email: user.email,
+            name: user.name
+        },
+        token
+    })
+
 }
 
 
-async function loginUser(req, res) {
-    try {
-        const { email, password } = req.body;
+/**
+ * - User Logout Controller
+ * - POST /api/auth/logout
+  */
+async function userLogoutController(req, res) {
+    const token = req.cookies.token || req.headers.authorization?.split(" ")[ 1 ]
 
-        // 1. Validate that the user actually sent both fields
-        if (!email || !password) {
-            return res.status(400).json({ message: "Email and password are required" });
-        }
-
-        // 2. FIX: Add .select('+password') so Mongoose actually returns the hash to bcrypt!
-        const user = await userModel.findOne({ email }).select('+password');
-
-        if (!user) {
-            return res.status(400).json({ message: "Invalid credentials" });
-        }
-
-        // Now user.password actually exists, so this will work perfectly:
-        const isMatch = await user.comparePassword(password);
-        
-        if (!isMatch) {
-            return res.status(400).json({ message: "Invalid credentials" });
-        }
-
-        const token = jwt.sign(
-            { id: user._id },
-            process.env.JWT_SECRET,
-            { expiresIn: '3d' }
-        );
-
-        res.cookie('token', token, {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'strict',
-            maxAge: 3 * 24 * 60 * 60 * 1000,
-        });
-
+    if (!token) {
         return res.status(200).json({
-            message: "User logged in successfully",
-            user: {
-                _id: user._id,
-                username: user.username,
-                email: user.email
-            },
-            token
-        });
-
-    } catch (error) {
-        console.error("Login Error:", error);
-        return res.status(500).json({ message: "Internal server error" });
+            message: "User logged out successfully"
+        })
     }
-}
 
+
+
+    await tokenBlackListModel.create({
+        token: token
+    })
+
+    res.clearCookie("token")
+
+    res.status(200).json({
+        message: "User logged out successfully"
+    })
+
+}
 
 
 module.exports = {
-    registerUser,
-    loginUser
-};
+    userRegisterController,
+    userLoginController,
+    userLogoutController
+}
