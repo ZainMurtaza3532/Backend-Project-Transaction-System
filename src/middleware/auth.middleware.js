@@ -78,7 +78,18 @@ async function authSystemUserMiddleware(req, res, next) {
 
 }
 
+function isAdmin(req, res, next) {
+    if (req.user?.role === "admin") {
+        return next()
+    }
+
+    return res.status(403).json({
+        message: "Access denied. Admin resources only."
+    })
+}
+
 module.exports = {
     authMiddleware,
-    authSystemUserMiddleware
+    authSystemUserMiddleware,
+    isAdmin
 }
