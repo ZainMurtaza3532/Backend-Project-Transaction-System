@@ -3,6 +3,7 @@ const jwt = require("jsonwebtoken")
 const emailService = require("../services/email.service")
 const tokenBlackListModel = require("../models/blackList.model")
 const accountModel = require("../models/account.model")
+const { logUserActivity } = require("../services/audit.service")
 
 /**
 * - user register controller
@@ -107,7 +108,9 @@ async function userLoginController(req, res) {
             maxAge: 3 * 24 * 60 * 60 * 1000
         })
 
-        res.status(200).json({
+        logUserActivity(req, user._id, "LOGIN", { email: user.email })
+
+        return res.status(200).json({
             message: "Login successful",
             user: {
                 _id: user._id,
@@ -222,6 +225,16 @@ async function updateProfileController(req, res) {
         }
 
         await user.save()
+
+        if (isUpdatingPassword) {
+            logUserActivity(req, user._id, "PASSWORD_CHANGE", {
+                nameUpdated: isUpdatingName
+            })
+        } else if (isUpdatingName) {
+            logUserActivity(req, user._id, "PROFILE_UPDATE", {
+                newName: user.name
+            })
+        }
 
         return res.status(200).json({
             message: "Profile updated successfully",

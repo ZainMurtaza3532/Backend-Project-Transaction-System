@@ -1,6 +1,6 @@
 const express = require("express")
 const authController = require("../controllers/auth.controller")
-const authMiddleware = require("../middleware/auth.middleware")
+const { authMiddleware } = require("../middleware/auth.middleware")
 const { loginLimiter } = require("../middleware/rateLimit.middleware")
 
 const router = express.Router()
@@ -12,12 +12,14 @@ router.post("/register", authController.userRegisterController)
 router.post("/login", loginLimiter, authController.userLoginController)
 
 /* GET /api/auth/me */
-router.get("/me", authMiddleware.authMiddleware, authController.getMeController)
+router.get("/me", authMiddleware, authController.getMeController)
 
 /* POST /api/auth/logout */
 router.post("/logout", authController.userLogoutController)
 
-/* PUT /api/auth/update-profile */
-router.put("/update-profile", authMiddleware.authMiddleware, authController.updateProfileController)
+/* PUT & PATCH /api/auth/update-profile and /profile */
+router.put("/update-profile", authMiddleware, authController.updateProfileController)
+router.put("/profile", authMiddleware, authController.updateProfileController)
+router.patch("/profile", authMiddleware, authController.updateProfileController)
 
 module.exports = router

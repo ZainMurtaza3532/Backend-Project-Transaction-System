@@ -1,7 +1,6 @@
 const mongoose = require("mongoose")
 const bcrypt = require("bcryptjs")
 
-
 const userSchema = new mongoose.Schema({
     email: {
         type: String,
@@ -30,10 +29,32 @@ const userSchema = new mongoose.Schema({
     role: {
         type: String,
         enum: {
-            values: [ "user", "admin" ],
-            message: "Role must be either user or admin"
+            values: [ "user", "auditor", "admin", "super_admin" ],
+            message: "Role must be either user, auditor, admin, or super_admin"
         },
         default: "user"
+    },
+    isFrozen: {
+        type: Boolean,
+        default: false
+    },
+    // Risk Management & Compliance Transfer Limits
+    transferLimits: {
+        daily: {
+            type: Number,
+            default: 50000,
+            min: [0, "Daily limit cannot be negative"]
+        },
+        weekly: {
+            type: Number,
+            default: 200000,
+            min: [0, "Weekly limit cannot be negative"]
+        },
+        monthly: {
+            type: Number,
+            default: 500000,
+            min: [0, "Monthly limit cannot be negative"]
+        }
     }
 }, {
     timestamps: true
@@ -46,19 +67,11 @@ userSchema.pre("save", async function () {
 
     const hash = await bcrypt.hash(this.password, 10)
     this.password = hash
-
-    return
-
 })
 
 userSchema.methods.comparePassword = async function (password) {
-
-    console.log(password, this.password)
-
     return await bcrypt.compare(password, this.password)
-
 }
-
 
 const userModel = mongoose.model("user", userSchema)
 
