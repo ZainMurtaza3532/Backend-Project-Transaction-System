@@ -1,0 +1,75 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    background-color: #080B11;
+    background-image: 
+      radial-gradient(circle at 15% 15%, rgba(16, 185, 129, 0.08) 0%, transparent 40%),
+      radial-gradient(circle at 85% 20%, rgba(139, 92, 246, 0.07) 0%, transparent 40%),
+      radial-gradient(circle at 50% 85%, rgba(6, 182, 212, 0.06) 0%, transparent 50%);
+    background-attachment: fixed;
+  }
+
+  /* Custom Scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: #080B11;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 9999px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.25);
+  }
+}
+
+@layer components {
+  /* Glassmorphism Panels */
+  .glass-card {
+    background: rgba(18, 24, 38, 0.7);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+  }
+
+  .glass-card-interactive {
+    @apply glass-card transition-all duration-300 hover:border-white/20 hover:-translate-y-0.5 hover:shadow-2xl;
+  }
+
+  /* Virtual Card Holographic Sheen */
+  .virtual-card-sheen {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .virtual-card-sheen::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(
+      105deg,
+      transparent 30%,
+      rgba(255, 255, 255, 0.15) 45%,
+      rgba(255, 255, 255, 0.3) 50%,
+      rgba(255, 255, 255, 0.15) 55%,
+      transparent 70%
+    );
+    transform: translateX(-100%);
+    transition: transform 0.75s ease;
+    pointer-events: none;
+  }
+
+  .virtual-card-sheen:hover::after {
+    transform: translateX(100%);
+  }
+}
